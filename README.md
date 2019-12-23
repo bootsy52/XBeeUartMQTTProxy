@@ -1,5 +1,4 @@
 # XBeeUartMQTTProxy
-<<<<<<< HEAD
 A TCP/IP Proxy to tunnel MQTT Messages over UART using a XBee Device
 a Java implementation
 
@@ -17,4 +16,4 @@ There is no strict need on the version numbers, this are the versions which I us
 
 =======
 A TCP/IP Proxy to tunnel MQTT Messages over UART using an XBee Device
->>>>>>> f378b798f82862b803c5d7112537ecf9a2451c32
+
