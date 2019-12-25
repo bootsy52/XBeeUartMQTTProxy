@@ -16,15 +16,17 @@
 package de.piu.uart;
 
 import java.net.Socket;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.digi.xbee.api.RemoteXBeeDevice;
 
 public class XBeeQueue {
 	public Socket server = null;
 	public long lastReceived = 0;
+	public int nextWriteableSeqNumber = 0;
+	public int currentSeqNumber = 0;
 	public RemoteXBeeDevice remoteDevice = null;
 	public boolean isSocketWriting = false;
 	public boolean isSocketReading = false;
-	public byte[] dataOut = null;
-	
+	public ConcurrentHashMap<Integer, byte[]> dataOutBuffer = new ConcurrentHashMap<Integer, byte[]>();
 }

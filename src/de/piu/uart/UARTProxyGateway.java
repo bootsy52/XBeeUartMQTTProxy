@@ -58,7 +58,6 @@ public class UARTProxyGateway {
 	private static String uartDevice = "/dev/ttyS4";
 	private static final int UART_TIMEOUT = 2000;
 	private static final int UART_BAUD_RATE = 9600;
-	private static final byte[] disconnect = new byte[]{(byte)224, (byte)0};
 	private static ConcurrentHashMap<String, XBeeQueue> queue = new ConcurrentHashMap<String, XBeeQueue>();
 	/** The main method parses arguments and passes them to runServer */
 	public static void main(String[] args) throws IOException {
@@ -103,29 +102,46 @@ public class UARTProxyGateway {
 					while (true) {
 						XBeeMessage message = xbee.receiveMessage();
 						XBeeQueue queueItem;
+						byte[] data = null;
+						int seqNumber = 0;
 						if (message != null) {
 							debugMsg("Queue Remote");
 							String macAddress = String.valueOf(message.getDevice().get64BitAddress());
+							// check if an object is associated to the sending macAddress
 							queueItem = queue.get(macAddress);
+							data = message.getData();
+							seqNumber = UARTProxyUtil.decodeSequenceHeader(data);
+							debugMsg("Sequence Number is: " + seqNumber);
+							// we just need to synchronize if the object exists
 							if (queueItem != null) {
 								synchronized(queueItem) {
 									queueItem.lastReceived = System.currentTimeMillis();
-									queueItem.dataOut = message.getData();
+									// 0 is the starting sequence Number so clear all out all remaining artifacts
+									// as a new connection has begun, though all old data is irrelevant now as the connection is gone
+									// on the other side of the end
+									if (seqNumber == 0) {
+										queueItem.dataOutBuffer.clear();
+									}
+									queueItem.dataOutBuffer.put(seqNumber, data);
+									queueItem.currentSeqNumber = seqNumber;
 									queue.put(macAddress, queueItem);
 									continue; 
 								}
 							}
+							// There is no active object associated to the remoteMacAddress
+							// instantiate a new object and initialize initial values
 							queueItem = new XBeeQueue();
 							queueItem.lastReceived = System.currentTimeMillis();
 							queueItem.remoteDevice = message.getDevice();
-							queueItem.dataOut = message.getData();
+							queueItem.dataOutBuffer.put(seqNumber, data);
+							queueItem.currentSeqNumber = seqNumber;
 							try {
 								queueItem.server = new Socket(host, remoteport);
 								queueItem.server.setSoTimeout(SO_TIMEOUT);
 							} catch (IOException e) {
 								debugMsg("Proxy server cannot connect to " + host + ":" + remoteport + ":\n" + e);
 								synchronized(queueItem) {
-									xbee.send(queueItem.remoteDevice, disconnect, disconnect.length);
+									xbee.send(queueItem.remoteDevice, UARTProxyUtil.DISCONNECT, UARTProxyUtil.DISCONNECT.length);
 								}
 								continue;
 							}
@@ -154,6 +170,8 @@ public class UARTProxyGateway {
 				queueItem = entry.getValue();
 				try {
 					synchronized(queueItem) {
+						// Server connection did never happen,
+						// so just remove it from the queue nothing more is needed
 						if (queueItem.server == null) {
 							debugMsg("Server is null");
 							queue.remove(macAddress);
@@ -173,27 +191,27 @@ public class UARTProxyGateway {
 							queue.remove(macAddress);
 							continue;
 						}
-						
-						if (queueItem.dataOut != null && queueItem.dataOut.length >= 2) {
-						    int packetHeader = queueItem.dataOut[0] & 0xFF;
-						    packetHeader += queueItem.dataOut[1] & 0xFF;
-						    // The client disconnect Header is E0 00
-						    // E0 = 224
-						    // 00 = 0
-						    // 224 + 0 = 224
-						    if (packetHeader == 224) {
-						    	debugMsg("Received disconnect");
-						    	queue.remove(macAddress);
-						    	// if there are not outstanding write operations
-						    	// close socket to free it up as early as possible
-						    	// as we will not receive any more data from the client
-						    	if (queueItem.isSocketWriting == false) {
-						    		queueItem.server.close();
-						    		continue;
-						    	}
-						    }
+						// Check if the current message received with current sequence number is a client disconnect packet
+						// Then we can cancel out all pending action but the write actions (as this may be the last valid write operation)
+						// due to that the client has gone away and won't receive any further messages from us
+						if (UARTProxyUtil.isClientDisconnected(queueItem.dataOutBuffer.get(queueItem.currentSeqNumber))) {
+							debugMsg("Received disconnect");
+							queue.remove(macAddress);
+							// if there are not outstanding write operations
+							// close socket to free it up as early as possible
+							// as we will not receive any more data from the client
+							if (queueItem.isSocketWriting == false) {
+								queueItem.server.close();
+								continue;
+							}
 						}
-						if (queueItem.isSocketWriting == false && queueItem.dataOut != null && queueItem.dataOut.length > 0) {
+						// Inspect if the nextWriteableSeqNumber 
+						// a) does actually exists and 
+						// b) has any valid data, otherwise we needn't to call the write() Thread
+						if (queueItem.isSocketWriting == false 
+								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber) != null 
+								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber).length > 0) 
+						{
 							queueItem.isSocketWriting = true;
 							writeLocal(macAddress, queueItem);
 						}
@@ -216,38 +234,54 @@ public class UARTProxyGateway {
 				Socket socket = null;
 				byte[] data = null;
 				RemoteXBeeDevice remoteDevice = null;
+				ConcurrentHashMap<Integer, byte[]> dataOutBuffer = null;
+				int nextWriteableSeqNumber = 0;
+				int currentSeqNumber = 0;
+				// copy the objects to local variables, as we just hold the lock on queueItem
+				// and want to release it as soon as possible (dataOut and data are primitive types,
+				// setting queueItem.dataOut = null works as it is not a reference to an object
 				synchronized(queueItem) {
+					dataOutBuffer = queueItem.dataOutBuffer;
+					nextWriteableSeqNumber = queueItem.nextWriteableSeqNumber;
+					currentSeqNumber = queueItem.currentSeqNumber;
 					socket = queueItem.server;
-					data   = queueItem.dataOut;
 					remoteDevice = queueItem.remoteDevice;
-					if (data == null || data.length == 0) {
-						queueItem.isSocketWriting = false;
-						return;
-					}
 				}
-
 				OutputStream sendLocal = null;
 				try {
-					sendLocal = socket.getOutputStream();
-					sendLocal.write(data);
-					sendLocal.flush();
-					  synchronized(queueItem) {
-						  queueItem.isSocketWriting = false;
-						  queueItem.dataOut = null;
-					  }
-					  debugMsg("Wrote local");
+					for (int i = nextWriteableSeqNumber; i <= currentSeqNumber; i++) {
+						// remove returns the value associated to the key or null
+						data = dataOutBuffer.remove(i);
+						nextWriteableSeqNumber = i;
+						if (data != null) {
+							debugMsg("Writing data for sequence Number: " + nextWriteableSeqNumber + " first byte: " + (data[UARTProxyUtil.HEADER_OFFSET] & 0xFF));
+							sendLocal = socket.getOutputStream();
+							sendLocal.write(data, UARTProxyUtil.HEADER_OFFSET, (data.length - UARTProxyUtil.HEADER_OFFSET));
+							sendLocal.flush();
+						} else {
+							debugMsg("Missing Sequence Number: " + i);
+							// TODO Maybe insert check for containsKey() as it is uncertain if the value of
+							// get(i) is null or the key is not found
+							break;
+						}
+					}
+					nextWriteableSeqNumber++;
+					debugMsg("Wrote local, Next Sequence Number: " + nextWriteableSeqNumber);
 				} catch (Exception e) {
 					debugMsg(e);
+					// if there was an error in the write operation nextWriteableSeqNumber is still
+					// at the current writing number
+					nextWriteableSeqNumber++;
 					try {
-						synchronized(queueItem) {
-							queueItem.isSocketWriting = false;
-							queueItem.dataOut = null;
-						}
-						xbee.send(remoteDevice, disconnect, disconnect.length);
+						xbee.send(remoteDevice, UARTProxyUtil.DISCONNECT, UARTProxyUtil.DISCONNECT.length);
 						sendLocal.close();
 						socket.close();
 
 					} catch (Exception e2) {}
+				}
+				synchronized (queueItem) {
+					queueItem.isSocketWriting = false;
+					queueItem.nextWriteableSeqNumber = nextWriteableSeqNumber;
 				}
 			}
 		};
@@ -262,11 +296,14 @@ public class UARTProxyGateway {
 				Socket socket = null;
 				RemoteXBeeDevice remoteDevice = null;
 				try {
+					// copy the objects to local variables as we hold a lock on queueItem and want
+					// to release it as soon as possible
 					synchronized(queueItem) {
 						socket = queueItem.server;
 						remoteDevice = queueItem.remoteDevice;
 						receiveRemote = socket.getInputStream();
 					}
+					debugMsg("Start Read local");
 					while((bytes_read = receiveRemote.read(reply)) != -1) {
 						xbee.send(remoteDevice, reply, bytes_read);
 					}
@@ -279,9 +316,9 @@ public class UARTProxyGateway {
 					try {
 						synchronized(queueItem) {
 							queueItem.isSocketReading = false;
-							receiveRemote.close();
-							socket.close();
 						}
+						receiveRemote.close();
+						socket.close();
 					} catch (Exception e2) {}
 				}
 			}

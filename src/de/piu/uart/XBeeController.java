@@ -77,7 +77,7 @@ public class XBeeController{
 		send(this.remoteDevice, writeBytes, length);
 	}
 	public void send(RemoteXBeeDevice remoteDevice, byte[] writeBytes, int length) throws IOException {
-		send(remoteDevice, writeBytes, length, 100);
+		send(remoteDevice, writeBytes, length, 0);
 	}
 	public void send(RemoteXBeeDevice remoteDevice, byte[] writeBytes, int length, int pause) throws IOException {
 		if (remoteDevice == null) {
@@ -121,8 +121,10 @@ public class XBeeController{
 			// to prevent this we issue a small break between sending each packet
 			// 100 ms have worked out well in my environment but may be adjusted in 
 			// larger networks
-			Thread.sleep(pause);
-			debugMsg("XBee Done Sending to: " + remoteMacAddress);
+			if (pause > 0) {
+				Thread.sleep(pause);
+			}
+			debugMsg("XBee Done Sending to: " + String.valueOf(remoteDevice.get64BitAddress()));
 		} catch (XBeeException e) {
 			throw new IOException(e);
 		} catch (InterruptedException e) {} 

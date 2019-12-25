@@ -94,12 +94,7 @@ public class UARTProxy {
     @SuppressWarnings("resource")
 	ServerSocket serverAdminSocket = new ServerSocket(adminPort);
     serverAdminSocket.setSoTimeout(SO_TIMEOUT);
-    // Create buffers for client-to-server and server-to-client communication.
-    // We make one final so it can be used in an anonymous class below.
-    // Note the assumptions about the volume of traffic in each direction...
-    final byte[] request = new byte[BUFFER_SIZE];
     final XBeeController xbee = new XBeeController(xbeeDevice, remoteNodeID, debug);
-
     
     // As the XBee device is opened exclusive there are no interactions
     // possible from outside this program, therefore we can only provide
@@ -174,21 +169,33 @@ public class UARTProxy {
         Thread writeRemote = new Thread() {
         	public void run() {
         		int bytes_read;
+        		int writeSequenceNumber = 0;
+        		// Create buffers for client-to-server and server-to-client communication.
+        	    // We make one final so it can be used in an anonymous class below.
+        	    // Note the assumptions about the volume of traffic in each direction...
+        	    byte[] request = new byte[BUFFER_SIZE];
         		try {
         			synchronized(isConnected) {
         				if (isConnected == false) {
         					receiveLocal.close();
         					return;
         				}
-        			}
-        			while((bytes_read = receiveLocal.read(request)) != -1) {
-        				xbee.send(request, bytes_read);
-        				debugMsg("Sent Remote " + (request[0] & 0xFF));
-        				if(isDisconnected(request)) {
+        			} 
+        			while((bytes_read = receiveLocal.read(request, UARTProxyUtil.HEADER_OFFSET, (request.length - UARTProxyUtil.HEADER_OFFSET))) != -1) {
+        				UARTProxyUtil.insertSequenceHeader(request, writeSequenceNumber);
+        				debugMsg("Next Sequence Number is: " + writeSequenceNumber);
+        				xbee.send(request, (UARTProxyUtil.HEADER_OFFSET + bytes_read));
+        				debugMsg("Sent Remote " + (request[UARTProxyUtil.HEADER_OFFSET] & 0xFF));
+        				if(UARTProxyUtil.isClientDisconnected(request)) {
         					synchronized(isConnected) {
         						isConnected = false;
         					}
         				}
+        			// not necessarily needed as always there will be just read bytes_read
+        			// and thus remaining bytes from a former longer read would not affect the operation
+        		    // but we want a clean byte array
+        		    request = new byte[BUFFER_SIZE];
+        			writeSequenceNumber++;        			
         			}
         		}
         		catch (IOException e) {
@@ -238,7 +245,7 @@ public class UARTProxy {
         			sendLocal.write(received);
         			sendLocal.flush();
         		}
-        		if (isDisconnected(received)) {
+        		if (UARTProxyUtil.isClientDisconnected(received)) {
         			debugMsg("Connecton terminated by remote peer");
         			synchronized(isConnected) {
         				isConnected = false;
@@ -269,20 +276,6 @@ public class UARTProxy {
         catch(Exception e) {}
       }
     }
-  }
-  private static boolean isDisconnected(byte[] packet) {
-	  if (packet != null && packet.length >= 2) {
-		  int packetHeader = packet[0] & 0xFF;
-		  packetHeader += packet[1] & 0xFF;
-		  // The client disconnect Header is E0 00
-		  // E0 = 224
-		  // 00 = 0
-		  // 224 + 0 = 224
-		  if (packetHeader == 224) {
-			  return true;
-		  }		  
-	  }
-	  return false;
   }
   private static void debugMsg(Exception e) {
 	  if (!debug) {
