@@ -56,7 +56,7 @@ java -jar UARTProxyGateway.jar /dev/ttyS1 192.168.0.5 1883
 
 ## Remarks
 
-It is recommended to sent a disconnect by the client after MQTT messages have been sent to give the remote peer an indication that the transfer has finished. Generally you should close your connection to the local UARTProxy after you've sent or received the data as we have a finite number of packet sequence numbers available. Sequence Numbers start at 0 when the connection is establish and increment until the connection is closed or a disconnect is sent, so leaving the connection open and sending data again and again will sooner or later reach the limit of the maximum value of an integer.
+It is recommended to sent a disconnect by the client after MQTT messages have been sent to give the remote peer an indication that the transfer has finished. Generally you should close your connection to the local UARTProxy after you've sent or received the data as we have a finite number of packet sequence numbers available. Sequence Numbers start at 0 when the connection is established and increment until the connection is closed or a disconnect is sent, so leaving the connection open and sending data again and again will sooner or later reach the limit of the maximum value of an integer.
 
 I would recommend [Armbian](http://www.armbian.com) as they provide the rxtx package, you can install the rxtx library on armbian with 
 
