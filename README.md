@@ -42,7 +42,7 @@ On your device wich has the sensor (or which wants to publisch MQTT messages) an
 java -jar UARTProxy.jar /dev/ttyS1 GATEWAY localhost 1882 1881
 ```
 
-in you MQTT applicatioin you then set the broker URL to tcp://localhost:1882
+in your MQTT applicatioin you then set the broker URL to tcp://localhost:1882
 
 on your gateway which is attached to the network and able to reach the broker via TCP/IP you run the command
 (assuming the XBee device is attached to /dev/ttyS1 and the broker host is 192.168.0.5 listening on default port 1883)
@@ -58,6 +58,6 @@ I would recommend [Armbian](http://www.armbian.com) as they provide the rxtx pac
 ```sh
 apt-get intall librxtx-java
 ```
-I used the [Rock Pi 4A](https://wiki.radxa.com/Rockpi4) as hardware platform
+I used the [Rock Pi 4A](https://wiki.radxa.com/Rockpi4) as hardware platform, with XBee connected to UART4 /dev/ttyS4, which works very well.
 
 
