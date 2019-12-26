@@ -50,3 +50,14 @@ on your gateway which is attached to the network and able to reach the broker vi
 ```sh
 java -jar UARTProxyGateway.jar /dev/ttyS1 192.168.05 1883
 ```
+
+## Remarks
+
+I would recommend [Armbian](http://www.armbian.com) as they provide the rxtx package, you can install the rxtx library on armbian with 
+
+```sh
+apt-get intall librxtx-java
+```
+I used the [Rock Pi 4A](https://wiki.radxa.com/Rockpi4) as hardware platform
+
+
