@@ -24,7 +24,8 @@ public class XBeeQueue {
 	public Socket server = null;
 	public long lastReceived = 0;
 	public int nextWriteableSeqNumber = 0;
-	public int currentSeqNumber = 0;
+	public int currentRemoteSeqNumber = 0;
+	public int currentLocalSeqNumber = 0;
 	public RemoteXBeeDevice remoteDevice = null;
 	public boolean isSocketWriting = false;
 	public boolean isSocketReading = false;

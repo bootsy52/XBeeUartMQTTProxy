@@ -123,7 +123,7 @@ public class UARTProxyGateway {
 										queueItem.dataOutBuffer.clear();
 									}
 									queueItem.dataOutBuffer.put(seqNumber, data);
-									queueItem.currentSeqNumber = seqNumber;
+									queueItem.currentRemoteSeqNumber = seqNumber;
 									queue.put(macAddress, queueItem);
 									continue; 
 								}
@@ -134,7 +134,7 @@ public class UARTProxyGateway {
 							queueItem.lastReceived = System.currentTimeMillis();
 							queueItem.remoteDevice = message.getDevice();
 							queueItem.dataOutBuffer.put(seqNumber, data);
-							queueItem.currentSeqNumber = seqNumber;
+							queueItem.currentRemoteSeqNumber = seqNumber;
 							try {
 								queueItem.server = new Socket(host, remoteport);
 								queueItem.server.setSoTimeout(SO_TIMEOUT);
@@ -194,7 +194,7 @@ public class UARTProxyGateway {
 						// Check if the current message received with current sequence number is a client disconnect packet
 						// Then we can cancel out all pending action but the write actions (as this may be the last valid write operation)
 						// due to that the client has gone away and won't receive any further messages from us
-						if (UARTProxyUtil.isClientDisconnected(queueItem.dataOutBuffer.get(queueItem.currentSeqNumber))) {
+						if (UARTProxyUtil.isClientDisconnected(queueItem.dataOutBuffer.get(queueItem.currentRemoteSeqNumber))) {
 							debugMsg("Received disconnect");
 							queue.remove(macAddress);
 							// if there are not outstanding write operations
@@ -210,7 +210,7 @@ public class UARTProxyGateway {
 						// b) has any valid data, otherwise we needn't to call the write() Thread
 						if (queueItem.isSocketWriting == false 
 								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber) != null 
-								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber).length > 0) 
+								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber).length > UARTProxyUtil.HEADER_OFFSET) 
 						{
 							queueItem.isSocketWriting = true;
 							writeLocal(macAddress, queueItem);
@@ -243,7 +243,7 @@ public class UARTProxyGateway {
 				synchronized(queueItem) {
 					dataOutBuffer = queueItem.dataOutBuffer;
 					nextWriteableSeqNumber = queueItem.nextWriteableSeqNumber;
-					currentSeqNumber = queueItem.currentSeqNumber;
+					currentSeqNumber = queueItem.currentRemoteSeqNumber;
 					socket = queueItem.server;
 					remoteDevice = queueItem.remoteDevice;
 				}
@@ -292,6 +292,7 @@ public class UARTProxyGateway {
 			public void run() {
 				final byte[] reply = new byte[BUFFER_SIZE];
 				int bytes_read;
+				int sequenceNumber = 0;
 				InputStream receiveRemote = null;
 				Socket socket = null;
 				RemoteXBeeDevice remoteDevice = null;
@@ -302,24 +303,25 @@ public class UARTProxyGateway {
 						socket = queueItem.server;
 						remoteDevice = queueItem.remoteDevice;
 						receiveRemote = socket.getInputStream();
+						sequenceNumber = queueItem.currentLocalSeqNumber;
 					}
-					debugMsg("Start Read local");
-					while((bytes_read = receiveRemote.read(reply)) != -1) {
-						xbee.send(remoteDevice, reply, bytes_read);
+					while((bytes_read = receiveRemote.read(reply, UARTProxyUtil.HEADER_OFFSET, (reply.length - UARTProxyUtil.HEADER_OFFSET))) != -1) {
+						UARTProxyUtil.insertSequenceHeader(reply, sequenceNumber);
+	    				debugMsg("Next local sequence Number is: " + sequenceNumber);
+						xbee.send(remoteDevice, reply, (UARTProxyUtil.HEADER_OFFSET + bytes_read));
+						sequenceNumber++;
 					}
 					debugMsg("Read local");
-					synchronized(queueItem) {
-						queueItem.isSocketReading = false;
-					}
 				} catch (IOException e) {
 					debugMsg(e);
 					try {
-						synchronized(queueItem) {
-							queueItem.isSocketReading = false;
-						}
 						receiveRemote.close();
 						socket.close();
 					} catch (Exception e2) {}
+				}
+				synchronized(queueItem) {
+					queueItem.isSocketReading = false;
+					queueItem.currentLocalSeqNumber = sequenceNumber;
 				}
 			}
 		};

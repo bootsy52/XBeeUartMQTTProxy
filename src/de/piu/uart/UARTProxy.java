@@ -27,6 +27,7 @@ package de.piu.uart;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.digi.xbee.api.XBeeDevice;
 /**
@@ -45,6 +46,7 @@ public class UARTProxy {
   private static final int UART_BAUD_RATE = 9600;
   private static final int UART_TIMEOUT = 3000;
   private static final int BUFFER_SIZE = 512;
+  public static ConcurrentHashMap<Integer, byte[]> dataInBuffer = new ConcurrentHashMap<Integer, byte[]>();
   /** The main method parses arguments and passes them to runServer */
   public static void main(String[] args) throws IOException {
     try {
@@ -153,9 +155,12 @@ public class UARTProxy {
     while(true) { 
       // Variables to hold the sockets to the client and to the server.
       Socket local = null;
+      int currentSeqNumber = 0;
+      int nextReadableSeqNumber = 0;
       try {
         // Wait for a connection on the local port
         local = serverSocket.accept();
+        dataInBuffer.clear();
         isConnected = true;
         // Get client streams.  Make them final so they can
         // be used in the anonymous thread below.
@@ -239,20 +244,33 @@ public class UARTProxy {
         			break;
         		}
         		byte[] received = xbee.receive();
-        		if (received.length > 0) {
-        			debugMsg("Send Local");
-        			idle = 0;
-        			sendLocal.write(received);
-        			sendLocal.flush();
+        		// All packets which do not at lesat have the 1 byte more then our HEADER are
+        		// invalid or no packet has been received, xbee.receive() returns an empty byte array if no data is received
+        		if (received.length > UARTProxyUtil.HEADER_OFFSET) {
+        			currentSeqNumber = UARTProxyUtil.decodeSequenceHeader(received);
+        			dataInBuffer.put(currentSeqNumber, received);
+        			for (int i = nextReadableSeqNumber; i <= currentSeqNumber; i++) {
+        				// remvoe returns the value associated to the key or null if not existent
+        				received = dataInBuffer.remove(i);
+        				if (received != null) {
+        					debugMsg("Write local, sequence Number: " + nextReadableSeqNumber);
+        					idle = 0;
+        					sendLocal.write(received, UARTProxyUtil.HEADER_OFFSET, (received.length - UARTProxyUtil.HEADER_OFFSET));
+        					sendLocal.flush();
+        				} else {
+        					break;
+        				}
+        				nextReadableSeqNumber++;
+        			}
         		}
         		if (UARTProxyUtil.isClientDisconnected(received)) {
         			debugMsg("Connecton terminated by remote peer");
         			synchronized(isConnected) {
         				isConnected = false;
         			}
-        		  local.close();
+        			local.close();
         		}
-        	  idle++;
+        		idle++;
         	}
         	// catch (InterruptedException e) {}
         	catch(IOException e) {
@@ -268,6 +286,7 @@ public class UARTProxy {
       }
       catch (SocketTimeoutException e) {}
       catch (IOException e) { debugMsg(e); }
+      catch (ArrayIndexOutOfBoundsException e) { debugMsg(e); }
       // Close the sockets no matter what happens each time through the loop.
       finally { 
         try { 

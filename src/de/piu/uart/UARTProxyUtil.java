@@ -25,11 +25,11 @@ public class UARTProxyUtil {
  }
  
  public static int decodeSequenceHeader(byte[] sequenceHeader) {
-	    int sequenceNumber = (((int)(sequenceHeader[0]) << 24) & 0xFF000000) |
-	    					 (((int)(sequenceHeader[1]) << 16) & 0xFF0000)	 |
-	    					 (((int)(sequenceHeader[2]) << 8) & 0xFF00)      |
-	    					 ((int)(sequenceHeader[3]) & 0xFF);
-	    return sequenceNumber;
+	 int sequenceNumber = (((int)(sequenceHeader[0]) << 24) & 0xFF000000) |
+			 (((int)(sequenceHeader[1]) << 16) & 0xFF0000)	 |
+			 (((int)(sequenceHeader[2]) << 8) & 0xFF00)      |
+			 ((int)(sequenceHeader[3]) & 0xFF);
+	 return sequenceNumber;
  }
  public static byte[] stripHeader(byte[] data) {
 	 byte[] noHeaderData = new byte[data.length - HEADER_OFFSET];
