@@ -28,10 +28,10 @@ I've tested this implementation in my laboratory and it runs well with 3 Devices
 ## Usage
 
 ```sh
- java -jar UARTProxy.jar <UART device> <xbee remote nodeID> <host> <localport> <admin port>
+java -jar UARTProxy.jar <UART device> <xbee remote nodeID> <host> <localport> <admin port>
 ```
 ```sh
-  java -jar UARTProxyGateway.jar <UART device> <brokerhost> <remoteport>
+java -jar UARTProxyGateway.jar <UART device> <brokerhost> <remoteport>
 ```
 
 both applications accept a **-v** parameter as the last argument, this will make the program very noisy printing almost every little piece of information (also exception messages of catched exceptions) so this is mainly if you are developing or debugging this application and not suitable for normal use.
