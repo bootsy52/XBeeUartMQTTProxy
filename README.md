@@ -1,6 +1,5 @@
 # XBeeUartMQTTProxy
-A TCP/IP Proxy to tunnel MQTT Messages over UART using a [XBee Device](https://www.digi.com/xbee)
-a Java implementation
+A TCP/IP Proxy to tunnel MQTT Messages over UART using a [XBee Device](https://www.digi.com/xbee) implemented in Java
 
 ## Intended Audience
 This implementation is mainly targeted at developers who work in the IoT field albeit this should work out of the box it is not meant to be used by end users. The reason is that it may be neccessary to adjust some of the parmeters (timeout values for example) to meet the requirments in your field. Second I use the XBee API in combination with the DigiMesh Devices if you want to use this software for example with other Digi Devices such like celluar you must adjust it to suit your needs. I use the API in normal mode so for those whoo need to use the explicit format it also needs adjustments by you.
