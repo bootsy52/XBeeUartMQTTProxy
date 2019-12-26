@@ -46,6 +46,7 @@ public class UARTProxy {
   private static final int UART_BAUD_RATE = 9600;
   private static final int UART_TIMEOUT = 3000;
   private static final int BUFFER_SIZE = 512;
+  private static final int HEADER_OFFSET = UARTProxyUtil.HEADER_OFFSET;
   public static ConcurrentHashMap<Integer, byte[]> dataInBuffer = new ConcurrentHashMap<Integer, byte[]>();
   /** The main method parses arguments and passes them to runServer */
   public static void main(String[] args) throws IOException {
@@ -186,11 +187,11 @@ public class UARTProxy {
         					return;
         				}
         			} 
-        			while((bytes_read = receiveLocal.read(request, UARTProxyUtil.HEADER_OFFSET, (request.length - UARTProxyUtil.HEADER_OFFSET))) != -1) {
+        			while((bytes_read = receiveLocal.read(request, HEADER_OFFSET, (request.length - HEADER_OFFSET))) != -1) {
         				UARTProxyUtil.insertSequenceHeader(request, writeSequenceNumber);
         				debugMsg("Next Sequence Number is: " + writeSequenceNumber);
-        				xbee.send(request, (UARTProxyUtil.HEADER_OFFSET + bytes_read));
-        				debugMsg("Sent Remote " + (request[UARTProxyUtil.HEADER_OFFSET] & 0xFF));
+        				xbee.send(request, (HEADER_OFFSET + bytes_read));
+        				debugMsg("Sent Remote " + (request[HEADER_OFFSET] & 0xFF));
         				if(UARTProxyUtil.isClientDisconnected(request)) {
         					synchronized(isConnected) {
         						isConnected = false;
@@ -246,7 +247,7 @@ public class UARTProxy {
         		byte[] received = xbee.receive();
         		// All packets which do not at lesat have the 1 byte more then our HEADER are
         		// invalid or no packet has been received, xbee.receive() returns an empty byte array if no data is received
-        		if (received.length > UARTProxyUtil.HEADER_OFFSET) {
+        		if (received.length > HEADER_OFFSET) {
         			currentSeqNumber = UARTProxyUtil.decodeSequenceHeader(received);
         			dataInBuffer.put(currentSeqNumber, received);
         			for (int i = nextReadableSeqNumber; i <= currentSeqNumber; i++) {
@@ -255,7 +256,7 @@ public class UARTProxy {
         				if (received != null) {
         					debugMsg("Write local, sequence Number: " + nextReadableSeqNumber);
         					idle = 0;
-        					sendLocal.write(received, UARTProxyUtil.HEADER_OFFSET, (received.length - UARTProxyUtil.HEADER_OFFSET));
+        					sendLocal.write(received, HEADER_OFFSET, (received.length - HEADER_OFFSET));
         					sendLocal.flush();
         				} else {
         					break;

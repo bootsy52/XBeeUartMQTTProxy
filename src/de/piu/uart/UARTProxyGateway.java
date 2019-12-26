@@ -58,6 +58,8 @@ public class UARTProxyGateway {
 	private static String uartDevice = "/dev/ttyS4";
 	private static final int UART_TIMEOUT = 2000;
 	private static final int UART_BAUD_RATE = 9600;
+	private static final int HEADER_OFFSET = UARTProxyUtil.HEADER_OFFSET;
+	private static final byte[] DISCONNECT = UARTProxyUtil.DISCONNECT;
 	private static ConcurrentHashMap<String, XBeeQueue> queue = new ConcurrentHashMap<String, XBeeQueue>();
 	/** The main method parses arguments and passes them to runServer */
 	public static void main(String[] args) throws IOException {
@@ -141,7 +143,7 @@ public class UARTProxyGateway {
 							} catch (IOException e) {
 								debugMsg("Proxy server cannot connect to " + host + ":" + remoteport + ":\n" + e);
 								synchronized(queueItem) {
-									xbee.send(queueItem.remoteDevice, UARTProxyUtil.DISCONNECT, UARTProxyUtil.DISCONNECT.length);
+									xbee.send(queueItem.remoteDevice, DISCONNECT, DISCONNECT.length);
 								}
 								continue;
 							}
@@ -210,7 +212,7 @@ public class UARTProxyGateway {
 						// b) has any valid data, otherwise we needn't to call the write() Thread
 						if (queueItem.isSocketWriting == false 
 								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber) != null 
-								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber).length > UARTProxyUtil.HEADER_OFFSET) 
+								&& queueItem.dataOutBuffer.get(queueItem.nextWriteableSeqNumber).length > HEADER_OFFSET) 
 						{
 							queueItem.isSocketWriting = true;
 							writeLocal(macAddress, queueItem);
@@ -254,9 +256,9 @@ public class UARTProxyGateway {
 						data = dataOutBuffer.remove(i);
 						nextWriteableSeqNumber = i;
 						if (data != null) {
-							debugMsg("Writing data for sequence Number: " + nextWriteableSeqNumber + " first byte: " + (data[UARTProxyUtil.HEADER_OFFSET] & 0xFF));
+							debugMsg("Writing data for sequence Number: " + nextWriteableSeqNumber + " first byte: " + (data[HEADER_OFFSET] & 0xFF));
 							sendLocal = socket.getOutputStream();
-							sendLocal.write(data, UARTProxyUtil.HEADER_OFFSET, (data.length - UARTProxyUtil.HEADER_OFFSET));
+							sendLocal.write(data, HEADER_OFFSET, (data.length - HEADER_OFFSET));
 							sendLocal.flush();
 						} else {
 							debugMsg("Missing Sequence Number: " + i);
@@ -273,7 +275,7 @@ public class UARTProxyGateway {
 					// at the current writing number
 					nextWriteableSeqNumber++;
 					try {
-						xbee.send(remoteDevice, UARTProxyUtil.DISCONNECT, UARTProxyUtil.DISCONNECT.length);
+						xbee.send(remoteDevice, DISCONNECT, DISCONNECT.length);
 						sendLocal.close();
 						socket.close();
 
@@ -305,10 +307,10 @@ public class UARTProxyGateway {
 						receiveRemote = socket.getInputStream();
 						sequenceNumber = queueItem.currentLocalSeqNumber;
 					}
-					while((bytes_read = receiveRemote.read(reply, UARTProxyUtil.HEADER_OFFSET, (reply.length - UARTProxyUtil.HEADER_OFFSET))) != -1) {
+					while((bytes_read = receiveRemote.read(reply, HEADER_OFFSET, (reply.length - HEADER_OFFSET))) != -1) {
 						UARTProxyUtil.insertSequenceHeader(reply, sequenceNumber);
 	    				debugMsg("Next local sequence Number is: " + sequenceNumber);
-						xbee.send(remoteDevice, reply, (UARTProxyUtil.HEADER_OFFSET + bytes_read));
+						xbee.send(remoteDevice, reply, (HEADER_OFFSET + bytes_read));
 						sequenceNumber++;
 					}
 					debugMsg("Read local");
