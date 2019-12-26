@@ -1,5 +1,5 @@
 # XBeeUartMQTTProxy
-A TCP/IP Proxy to tunnel MQTT Messages over UART using a XBee Device
+A TCP/IP Proxy to tunnel MQTT Messages over UART using a [XBee Device](https://www.digi.com/xbee)
 a Java implementation
 
 ## Intended Audience
@@ -7,9 +7,9 @@ This implementation is mainly targeted at developers who work in the IoT field a
 
 ## Libraries needed
 
- - xbee-java-library-1.3.0.jar
- - slf4j-api-1.7.12.jar
- - rxtx-2.2.jar (remember you also need the JNI native library for your operating system)
+ - [xbee-java-library-1.3.0.jar](https://github.com/digidotcom/xbee-java/releases)
+ - [slf4j-api-1.7.12.jar](http://www.slf4j.org/download.html)
+ - [rxtx-2.2.jar](http://rxtx.qbang.org/) (remember you also need the JNI native library for your operating system)
 
 Optional (if you want to see logging output from the XBee Device)
 
