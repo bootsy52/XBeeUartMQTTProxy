@@ -38,25 +38,27 @@ public class UARTProxyUtil {
 	 }
 	 return noHeaderData;
  }
- public static boolean isClientDisconnected(byte[] packet) {
-	  if (packet != null && packet.length >= 2) {
-		  int packetHeader;
-		  // the packet may contain our Sequence header which is 4 bytes
-		  if (packet.length == 6) {
-			  packetHeader = packet[4] & 0xFF;
-			  packetHeader += packet[5] & 0xFF;
-		  } else {
-			  packetHeader = packet[0] & 0xFF;
-			  packetHeader += packet[1] & 0xFF;  
-		  }
-		  // The client disconnect Header is E0 00
-		  // E0 = 224
-		  // 00 = 0
-		  // 224 + 0 = 224
-		  if (packetHeader == 224) {
-			  return true;
-		  }		  
-	  }
-	  return false;
+ public static boolean isPeerDisconnected(byte[] packet, boolean containsHeader) {
+	 // The client disconnect Header is E0 00
+	 // E0 = 224
+	 // 00 = 0
+	 // 224 + 0 = 224
+	 if (packet != null) {
+		 int packetHeader;
+		 if (containsHeader == true && packet.length >= (HEADER_OFFSET + 2)) {
+			 packetHeader = packet[HEADER_OFFSET] & 0xFF;
+			 packetHeader += packet[HEADER_OFFSET + 1] & 0xFF;
+			 if (packetHeader == 224) {
+				 return true;
+			 }
+		 } else if (containsHeader == false && packet.length >= 2) {
+			 packetHeader = packet[0] & 0xFF;
+			 packetHeader += packet[1] & 0xFF; 
+			 if (packetHeader == 224) {
+				 return true;
+			 }		
+		 }
+	 }
+	 return false;
  }
 }

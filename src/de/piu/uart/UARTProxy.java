@@ -191,8 +191,9 @@ public class UARTProxy {
         				UARTProxyUtil.insertSequenceHeader(request, writeSequenceNumber);
         				debugMsg("Next Sequence Number is: " + writeSequenceNumber);
         				xbee.send(request, (HEADER_OFFSET + bytes_read));
-        				debugMsg("Sent Remote " + (request[HEADER_OFFSET] & 0xFF));
-        				if(UARTProxyUtil.isClientDisconnected(request)) {
+        				debugMsg("Sent Remote " + (request[HEADER_OFFSET] & 0xFF) + " length: " + request.length);
+        				if(UARTProxyUtil.isPeerDisconnected(request, true)) {
+        					debugMsg("Sent disconnect to peer by local client");
         					synchronized(isConnected) {
         						isConnected = false;
         					}
@@ -248,6 +249,15 @@ public class UARTProxy {
         		// All packets which do not at lesat have the 1 byte more then our HEADER are
         		// invalid or no packet has been received, xbee.receive() returns an empty byte array if no data is received
         		if (received.length > HEADER_OFFSET) {
+        			// if the Peer is disconnected we don't need to send any more data nor expect to receive something
+        			// further more as the disconnect command is just implemented for client -> server sending the packet
+        			// to our local client will do nothing as this is not understood on the client side, so we first check
+        			// for disconnect and terminate the connection if the remote peer is disconnected and after that write to the client
+        			if (UARTProxyUtil.isPeerDisconnected(received, true)) {
+            			debugMsg("Connecton terminated by remote peer");
+            			local.close();
+            			break;
+            		}
         			currentSeqNumber = UARTProxyUtil.decodeSequenceHeader(received);
         			dataInBuffer.put(currentSeqNumber, received);
         			for (int i = nextReadableSeqNumber; i <= currentSeqNumber; i++) {
@@ -264,13 +274,7 @@ public class UARTProxy {
         				nextReadableSeqNumber++;
         			}
         		}
-        		if (UARTProxyUtil.isClientDisconnected(received)) {
-        			debugMsg("Connecton terminated by remote peer");
-        			synchronized(isConnected) {
-        				isConnected = false;
-        			}
-        			local.close();
-        		}
+        		
         		idle++;
         	}
         	// catch (InterruptedException e) {}

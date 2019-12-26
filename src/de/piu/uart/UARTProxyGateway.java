@@ -196,7 +196,7 @@ public class UARTProxyGateway {
 						// Check if the current message received with current sequence number is a client disconnect packet
 						// Then we can cancel out all pending action but the write actions (as this may be the last valid write operation)
 						// due to that the client has gone away and won't receive any further messages from us
-						if (UARTProxyUtil.isClientDisconnected(queueItem.dataOutBuffer.get(queueItem.currentRemoteSeqNumber))) {
+						if (UARTProxyUtil.isPeerDisconnected(queueItem.dataOutBuffer.get(queueItem.currentRemoteSeqNumber), true)) {
 							debugMsg("Received disconnect");
 							queue.remove(macAddress);
 							// if there are not outstanding write operations
