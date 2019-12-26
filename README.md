@@ -24,6 +24,10 @@ Imagine you got a network of about let's say 50 sensors all connected with XBee 
 
 I've tested this implementation in my laboratory and it runs well with 3 Devices sending consecutive MQTT Messages in parallel, however it has not been tested in the field yet with more devices under real conditions
 
+## Limitations
+
+You cannot send more than 2147483647 packets in one connection (**Note:** this is the number of packets not the number of MQTT messages, how many packets a MQTT packet accomplishes depends on various settings such as the QoS level used)
+
 ## Usage
 
 ```sh
@@ -52,6 +56,8 @@ java -jar UARTProxyGateway.jar /dev/ttyS1 192.168.0.5 1883
 
 ## Remarks
 
+It is recommended to sent a disconnect by the client after MQTT messages have been sent to give the remote peer an indication that the transfer has finished. Generally you should close your connection to the local UARTProxy after you've sent or received the data as we have a finite number of packet sequence numbers available. Sequence Numbers start at 0 when the connection is establish and increment until the connection is closed or a disconnect is sent, so leaving the connection open and sending data again and again will sooner or later reach the limit of the maximum value of an integer.
+
 I would recommend [Armbian](http://www.armbian.com) as they provide the rxtx package, you can install the rxtx library on armbian with 
 
 ```sh
@@ -60,3 +66,6 @@ apt-get intall librxtx-java
 I used the [Rock Pi 4A](https://wiki.radxa.com/Rockpi4) as hardware platform, with XBee connected to UART4 /dev/ttyS4, which works very well.
 
 
+## About
+
+I'm the CEO of [P-i-U UG & Co. KG](http://www.p-i-u.de) and it happens that even I have to work sometimes ;-)
