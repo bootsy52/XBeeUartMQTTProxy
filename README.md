@@ -45,9 +45,9 @@ On your device wich has the sensor (or which wants to publisch MQTT messages) an
 java -jar UARTProxy.jar /dev/ttyS1 GATEWAY localhost 1882 1881
 ```
 
-in your MQTT applicatioin you then set the broker URL to tcp://localhost:1882
+in your MQTT application you then set the broker URL to tcp://localhost:1882
 
-The admin port setting is there if you want to get access to the XBee device, as this device is opened by the proxy you cannot access the device anymore from the outside, so you can connect to the admin port using TCP/IP and issue XBee comamnds to interact with the device. Currently there is just a single command implemented which is **GETID** to retrieve the node id of the local device.
+The admin port (e.g. 1881) setting is there if you want to get access to the XBee device, as this device is opened by the proxy you cannot access the device anymore from the outside, so you can connect to the admin port using TCP/IP and issue XBee comamnds to interact with the device. Currently there is just a single command implemented which is **GETID** to retrieve the node id of the local device.
 
 On your gateway which is attached to the network and able to reach the broker via TCP/IP you run the command
 (assuming the XBee device is attached to /dev/ttyS1 and the broker host is 192.168.0.5 listening on default port 1883)
