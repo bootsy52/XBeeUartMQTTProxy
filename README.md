@@ -39,7 +39,7 @@ java -jar UARTProxyGateway.jar <UART device> <brokerhost> <remoteport>
 
 both applications accept a **-v** parameter as the last argument, this will make the program very noisy printing almost every little piece of information (also exception messages of catched exceptions) so this is mainly if you are developing or debugging this application and not suitable for normal use.
 
-On your device wich has the sensor (or which wants to publisch MQTT messages) and a XBee DigiMesh device attached on for example /dev/ttyS1 assuming that the Node identifier is set to **GATEWAY** on the receiving XBee device (using XCTU) you run **UARTProxy** like this, the admin port setting is there if you want to get access to the XBee device, as this device is opened by the proxy you cannot access the device anymore from the outside, so you can connect to the admin port using TCP/IP and issue XBee comamnds to interact with the device. Currently there is just a single command implemented which is **GETID** to retrieve the node id of the local device.
+On your device wich has the sensor (or which wants to publisch MQTT messages) and a XBee DigiMesh device attached on /dev/ttyS1 for example assuming that the Node identifier is set to **GATEWAY** on the receiving XBee device (using XCTU) you run **UARTProxy** like this:
 
 ```sh
 java -jar UARTProxy.jar /dev/ttyS1 GATEWAY localhost 1882 1881
@@ -47,7 +47,9 @@ java -jar UARTProxy.jar /dev/ttyS1 GATEWAY localhost 1882 1881
 
 in your MQTT applicatioin you then set the broker URL to tcp://localhost:1882
 
-on your gateway which is attached to the network and able to reach the broker via TCP/IP you run the command
+The admin port setting is there if you want to get access to the XBee device, as this device is opened by the proxy you cannot access the device anymore from the outside, so you can connect to the admin port using TCP/IP and issue XBee comamnds to interact with the device. Currently there is just a single command implemented which is **GETID** to retrieve the node id of the local device.
+
+On your gateway which is attached to the network and able to reach the broker via TCP/IP you run the command
 (assuming the XBee device is attached to /dev/ttyS1 and the broker host is 192.168.0.5 listening on default port 1883)
 
 ```sh
