@@ -48,7 +48,7 @@ on your gateway which is attached to the network and able to reach the broker vi
 (assuming the XBee device is attached to /dev/ttyS1 and the broker host is 192.168.0.5 listening on default port 1883)
 
 ```sh
-java -jar UARTProxyGateway.jar /dev/ttyS1 192.168.05 1883
+java -jar UARTProxyGateway.jar /dev/ttyS1 192.168.0.5 1883
 ```
 
 ## Remarks
